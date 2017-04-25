@@ -49,6 +49,7 @@ func main() {
         UserID                 string `json:"user_id"`
         UserName               string `json:"user_name"`
         Message                string `json:"message"`
+        EventUuid              string `json:"event_uuid"`
     }
 
     bot_name := "recordbot"
@@ -67,6 +68,13 @@ func main() {
             if userInfo.Name != bot_name { // We may not want to respond to our own bot and get in a loop.
                 re := regexp.MustCompile("^\\?\\w+")
                 fmt.Printf("Matches command identifier? %q\n", re.FindString(ev.Text))
+                uuid := ""
+                if len(re.FindString(ev.Text)) > 0 {
+                    uuid, err = Uuid()
+                    if err != nil {
+                        log.Fatal(err)
+                    }
+                }
 
                 // golang's time doesn't parse epoch strings. Convert to int64 and do some magic.
                 intSize := 64
@@ -92,6 +100,7 @@ func main() {
                     userInfo.ID,
                     userInfo.Name,
                     ev.Text,
+                    uuid,
                 }
                 // TODO: Actually use err here.
                 es_json, _ := json.Marshal(edoc)
