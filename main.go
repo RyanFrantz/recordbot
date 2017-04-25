@@ -21,21 +21,16 @@ import (
     "github.com/nlopes/slack"
 )
 
+/*
 type Config struct {
     Api_key string
 }
+*/
 
 func main() {
-    config_file, err := os.Open("recordbot.json")
+    config, err := ReadConfig("recordbot.json")
     if err != nil {
-        fmt.Printf("Unable to open config file: %s\n", err)
-    }
-
-    json_decoder := json.NewDecoder(config_file)
-    config := Config{}
-    err = json_decoder.Decode(&config)
-    if err != nil {
-        fmt.Printf("Failed to decode config file: %s\n", err)
+        log.Fatal(err)
     }
 
     api := slack.New(config.Api_key)
