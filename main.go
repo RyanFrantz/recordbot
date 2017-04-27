@@ -52,7 +52,9 @@ func main() {
         EventUuid              string `json:"event_uuid"`
     }
 
-    bot_name := "recordbot"
+    // We'll find our ID when we connect.
+    bot_id := ""
+
     for msg := range rtm.IncomingEvents {
         switch ev := msg.Data.(type) {
         case *slack.HelloEvent:
@@ -60,20 +62,29 @@ func main() {
 
         case *slack.ConnectedEvent:
             fmt.Println("Connected to Slack!")
+            bot_id = ev.Info.User.ID
             fmt.Println("Connection counter:", ev.ConnectionCount)
 
         case *slack.MessageEvent:
             channelInfo, _ := rtm.GetChannelInfo(ev.Channel)
             userInfo, _ := rtm.GetUserInfo(ev.User)
-            if userInfo.Name != bot_name { // We may not want to respond to our own bot and get in a loop.
-                re := regexp.MustCompile("^\\?\\w+")
-                fmt.Printf("Matches command identifier? %q\n", re.FindString(ev.Text))
-                uuid := ""
-                if len(re.FindString(ev.Text)) > 0 {
-                    uuid, err = Uuid()
-                    if err != nil {
-                        log.Fatal(err)
+            if userInfo.ID != bot_id { // We may not want to respond to our own bot and get in a loop.
+                re := regexp.MustCompile("^<@" + bot_id + ">\\s+(\\w+)")
+                fmt.Printf("Matches bot command? %q\n", re.FindString(ev.Text))
+                // Test for an existing event in eventsByChannel.
+                event_uuid, event_exists := eventsByChannel[channelInfo.Name]
+                if event_exists {
+                    fmt.Println("Ongoing event being tracked!")
+                } else {
+                    // Generate a UUID to tag messages.
+                    if len(re.FindString(ev.Text)) > 0 {
+                        event_uuid, err = Uuid()
+                        if err != nil {
+                            log.Fatal(err)
+                        }
+                        eventsByChannel[channelInfo.Name] = event_uuid
                     }
+
                 }
 
                 // golang's time doesn't parse epoch strings. Convert to int64 and do some magic.
@@ -83,15 +94,15 @@ func main() {
                     fmt.Printf("Unable to convert timestamp '%s' to int64: %s\n", ev.Timestamp, err)
                 }
                 slack_time := time.Unix(int64(ts), 0)
-                now := time.Now()
+                //now := time.Now()
                 // Slack often feeds us the last few messages in a channel when
                 // we join. Let's ignore those lest we accidentally duplicate
                 // stored messages or worse, enables/disables recording an
                 // event because it picked up an old command.
-                if slack_time.Unix() < now.Unix() {
-                    fmt.Printf("Slack time is older than now. Ignoring message! (%s)\n", ev.Text)
+                //if slack_time.Unix() < now.Unix() {
+                //    fmt.Printf("Slack time is older than now. Ignoring message! (%s)\n", ev.Text)
 
-                } else {
+                //} else {
                 edoc := ElasticsearchDocument{
                     ev.Timestamp,
                     slack_time.Format(time.RFC3339),  // ISO 8601
@@ -100,13 +111,13 @@ func main() {
                     userInfo.ID,
                     userInfo.Name,
                     ev.Text,
-                    uuid,
+                    event_uuid,
                 }
                 // TODO: Actually use err here.
                 es_json, _ := json.Marshal(edoc)
                 fmt.Println(string(es_json))
                 rtm.SendMessage(rtm.NewOutgoingMessage("Recorded " + string(es_json), channelInfo.ID)) // DEBUG
-                }
+                //}
             }
 
         case *slack.PresenceChangeEvent:

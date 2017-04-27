@@ -7,6 +7,12 @@ import (
     "strings"
 )
 
+// Create a dynamic map of channel names to event UUID.
+// We'll use this to set/lookup if an event is ongoing in a channel and tag
+// activity accordingly.
+var eventsByChannel = make(map[string]string)
+
+
 func Uuid() (string, error) {
     out, err := exec.Command("uuidgen").Output()
     if err != nil {
