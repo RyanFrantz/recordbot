@@ -15,6 +15,7 @@ import (
     "os"
     "regexp"
     "encoding/json"
+    "strings"
     "strconv"
     "time"
 
@@ -116,8 +117,13 @@ func main() {
                 // TODO: Actually use err here.
                 es_json, _ := json.Marshal(edoc)
                 fmt.Println(string(es_json))
-                rtm.SendMessage(rtm.NewOutgoingMessage("Recorded " + string(es_json), channelInfo.ID)) // DEBUG
-                match_command(ev.Text)
+                if strings.HasPrefix(ev.Text, "<@" + bot_id + ">") {
+                    rtm.SendMessage(rtm.NewOutgoingMessage("Received instructions from '%s'", userInfo.ID))
+                    fmt.Printf("Received instructions from '%s'\n", userInfo.ID)
+                    match_command(ev.Text)
+                } else {
+                    rtm.SendMessage(rtm.NewOutgoingMessage("Recorded " + string(es_json), channelInfo.ID)) // DEBUG
+                }
                 //}
             }
 
