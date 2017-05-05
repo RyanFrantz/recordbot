@@ -117,6 +117,7 @@ func main() {
                 es_json, _ := json.Marshal(edoc)
                 fmt.Println(string(es_json))
                 rtm.SendMessage(rtm.NewOutgoingMessage("Recorded " + string(es_json), channelInfo.ID)) // DEBUG
+                match_command(ev.Text)
                 //}
             }
 
