@@ -71,7 +71,9 @@ func main() {
             userInfo, _ := rtm.GetUserInfo(ev.User)
             if userInfo.ID != bot_id { // We may not want to respond to our own bot and get in a loop.
                 re := regexp.MustCompile("^<@" + bot_id + ">\\s+(\\w+)")
-                fmt.Printf("Matches bot command? %q\n", re.FindString(ev.Text))
+                if re.MatchString(ev.Text) == true {
+                    fmt.Printf("Someone is talking to our bot!\n")
+                }
                 // Test for an existing event in eventsByChannel.
                 event_uuid, event_exists := eventsByChannel[channelInfo.Name]
                 if event_exists {
@@ -118,9 +120,10 @@ func main() {
                 es_json, _ := json.Marshal(edoc)
                 fmt.Println(string(es_json))
                 if strings.HasPrefix(ev.Text, "<@" + bot_id + ">") {
-                    rtm.SendMessage(rtm.NewOutgoingMessage("Received instructions from '%s'", userInfo.ID))
+                    rtm.SendMessage(rtm.NewOutgoingMessage("Received instructions from @" + userInfo.ID + " : " + ev.Text, channelInfo.ID))
                     fmt.Printf("Received instructions from '%s'\n", userInfo.ID)
-                    match_command(ev.Text)
+                    //is_command, bot_command, event_name, err := is_bot_command(ev.Text)
+                    _, _, _, _ = is_bot_command(ev.Text)
                 } else {
                     rtm.SendMessage(rtm.NewOutgoingMessage("Recorded " + string(es_json), channelInfo.ID)) // DEBUG
                 }

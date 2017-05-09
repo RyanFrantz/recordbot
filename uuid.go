@@ -12,7 +12,6 @@ import (
 // activity accordingly.
 var eventsByChannel = make(map[string]string)
 
-
 func Uuid() (string, error) {
     out, err := exec.Command("uuidgen").Output()
     if err != nil {
