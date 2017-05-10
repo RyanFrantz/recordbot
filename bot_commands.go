@@ -1,27 +1,28 @@
 package main
 
 import (
+    "errors"
     "fmt"
     "regexp"
 )
 
 func is_bot_command(message string) (is_command bool, bot_command string, event_name string, err error) {
+    // "@recordbot start"
     // "@recordbot start outage event"
     // "@recordbot stop"
     // "@recordbot status"
     // "@recordbot wutang   "
-    regex_str := `\<@\w+\>\s+(?P<bot_command>\w+)\s*(?P<event_name>.*)?`
+    pattern := `\<@\w+\>\s+(?P<bot_command>\w+)\s*(?P<event_name>.*)?`
 
-    re, err := regexp.Compile(regex_str)
+    re, err := regexp.Compile(pattern)
     if err != nil {
-        fmt.Printf("regexp: Could not compile regex '%s'\n", regex_str)
-        return false, "", "", err // Add detail from the fmt.Printf statement.
+        err := errors.New(fmt.Sprintf("bot_commands.go: Could not compile regex pattern '%s': %s\n", pattern, err))
+        return false, "", "", err
     }
 
-    fmt.Printf("regexp: Received message '%s'\n", message)
     if re.MatchString(message) == true {
-        fmt.Printf("regexp: Matched '%s'\n", message)
         match_result := re.FindStringSubmatch(message)
+        // Create a hash of the capture group names to their values.
         names := re.SubexpNames()
         matches := make(map[string]string)
         for index, name := range names {
@@ -29,11 +30,9 @@ func is_bot_command(message string) (is_command bool, bot_command string, event_
                 matches[name] = match_result[index]
             }
         }
-        fmt.Printf("regexp: Bot command = '%s'\n", matches["bot_command"])
-        fmt.Printf("regexp: Event name = '%s'\n", matches["event_name"])
         return true, matches["bot_command"], matches["event_name"], nil
     } else {
-        fmt.Printf("regexp: Failed to match!\n")
+        // No match, carry on.
         return false, "", "", nil
     }
 }

@@ -42,17 +42,6 @@ func main() {
     rtm := api.NewRTM()
     go rtm.ManageConnection()
 
-    type ElasticsearchDocument struct {
-        SlackTimestamp         string `json:"slack_timestamp"`
-        SlackTimestampISO8601  string `json:"slack_timestamp_iso8601"`
-        ChannelID              string `json:"channel_id"`
-        ChannelName            string `json:"channel_name"`
-        UserID                 string `json:"user_id"`
-        UserName               string `json:"user_name"`
-        Message                string `json:"message"`
-        EventUuid              string `json:"event_uuid"`
-    }
-
     // We'll find our ID when we connect.
     bot_id := ""
 
@@ -70,8 +59,8 @@ func main() {
             channelInfo, _ := rtm.GetChannelInfo(ev.Channel)
             userInfo, _ := rtm.GetUserInfo(ev.User)
             if userInfo.ID != bot_id { // We may not want to respond to our own bot and get in a loop.
-                re := regexp.MustCompile("^<@" + bot_id + ">\\s+(\\w+)")
-                if re.MatchString(ev.Text) == true {
+                re_bot_request := regexp.MustCompile("^<@" + bot_id + ">\\s+(\\w+)")
+                if re_bot_request.MatchString(ev.Text) == true {
                     fmt.Printf("Someone is talking to our bot!\n")
                 }
                 // Test for an existing event in eventsByChannel.
@@ -80,7 +69,7 @@ func main() {
                     fmt.Println("Ongoing event being tracked!")
                 } else {
                     // Generate a UUID to tag messages.
-                    if len(re.FindString(ev.Text)) > 0 {
+                    if len(re_bot_request.FindString(ev.Text)) > 0 {
                         event_uuid, err = Uuid()
                         if err != nil {
                             log.Fatal(err)
