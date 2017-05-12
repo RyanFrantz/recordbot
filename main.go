@@ -56,8 +56,7 @@ func main() {
 				// TODO: Implement ongoing_event() to get/set UUID for events.
 				// Once we have told the bot to record, we need all messages to capture
 				// the UUID until it's told to stop.
-				event_uuid := ""
-				event_exists := false
+				event_uuid := eventsByChannel[channelInfo.Name]
 				if re_bot_request.MatchString(ev.Text) == true {
 					fmt.Printf("Someone is talking to our bot!\n")
 					is_command, bot_command, event_name, err := is_bot_command(ev.Text)
@@ -65,11 +64,12 @@ func main() {
 						// TODO: Log and return from this block.
 						fmt.Printf("Failed to check if '%s' is a bot command: %s\n", ev.Text, err)
 					}
+					// TODO: Test for 'start' or 'stop' and handle UUID.
 					if is_command {
 						fmt.Printf("COMMAND: '%s'; EVENT: '%s'\n", bot_command, event_name)
 						// Test for an existing event in eventsByChannel.
-						event_uuid, event_exists = eventsByChannel[channelInfo.Name]
-						if event_exists {
+						event_uuid = eventsByChannel[channelInfo.Name]
+						if event_uuid != "" {
 							fmt.Println("Ongoing event being tracked!")
 							rtm.SendMessage(rtm.NewOutgoingMessage("Already tracking an event in this channel", channelInfo.ID))
 						} else {
