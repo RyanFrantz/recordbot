@@ -49,41 +49,48 @@ func main() {
 			fmt.Println("Connection counter:", ev.ConnectionCount)
 
 		case *slack.MessageEvent:
-			channelInfo, _ := rtm.GetChannelInfo(ev.Channel)
-			userInfo, _ := rtm.GetUserInfo(ev.User)
-			if userInfo.ID != bot_id { // We may not want to respond to our own bot and get in a loop.
+			channel_info, _ := rtm.GetChannelInfo(ev.Channel)
+			channel_id := channel_info.ID
+			channel_name := channel_info.Name
+			// TODO: Handle this case and log accordingly to Elasticsearch.
+			// This if statement needs to wrap the rest of the code in main().
+			if ev.SubType == "message_changed" {
+				fmt.Printf("Received MessageEvent for message which has been changed/edited! Is hidden? [%s] There is likely no user info available.\n", strconv.FormatBool(ev.Hidden))
+			}
+			user_info, err := rtm.GetUserInfo(ev.User)
+			if err != nil {
+				log.Fatal(err) // TODO: Handle 'user_not_found' case
+			}
+			if user_info.ID != bot_id { // We may not want to respond to our own bot and get in a loop.
 				re_bot_request := regexp.MustCompile("^<@" + bot_id + ">\\s+(\\w+)")
-				// TODO: Implement ongoing_event() to get/set UUID for events.
-				// Once we have told the bot to record, we need all messages to capture
-				// the UUID until it's told to stop.
-				event_uuid := eventsByChannel[channelInfo.Name]
+				event_uuid := eventsByChannel[channel_name]
 				if re_bot_request.MatchString(ev.Text) == true {
-					fmt.Printf("Someone is talking to our bot!\n")
 					is_command, bot_command, event_name, err := is_bot_command(ev.Text)
 					if err != nil {
 						// TODO: Log and return from this block.
 						fmt.Printf("Failed to check if '%s' is a bot command: %s\n", ev.Text, err)
 					}
-					// TODO: Test for 'start' or 'stop' and handle UUID.
 					if is_command {
-						fmt.Printf("COMMAND: '%s'; EVENT: '%s'\n", bot_command, event_name)
-						// Test for an existing event in eventsByChannel.
-						event_uuid = eventsByChannel[channelInfo.Name]
-						if event_uuid != "" {
-							fmt.Println("Ongoing event being tracked!")
-							rtm.SendMessage(rtm.NewOutgoingMessage("Already tracking an event in this channel", channelInfo.ID))
-						} else {
-							// Generate a UUID to tag messages.
-							if len(re_bot_request.FindString(ev.Text)) > 0 {
+						fmt.Printf("COMMAND: '%s'; EVENT: '%s'\n", bot_command, event_name) // DEBUG
+						// TODO: Consider logging the bot command as a separate field.
+						switch bot_command {
+						case "start":
+							// Test for an existing event in eventsByChannel.
+							if event_uuid != "" {
+								rtm.SendMessage(rtm.NewOutgoingMessage("Already tracking an event in this channel", channel_id))
+							} else {
+								// Generate a UUID to tag messages.
 								event_uuid, err = Uuid()
 								if err != nil {
 									log.Fatal(err)
 								}
 								// TODO: Let's track the event name as well.
-								eventsByChannel[channelInfo.Name] = event_uuid
+								eventsByChannel[channel_name] = event_uuid
 							}
-
+						case "stop":
+							eventsByChannel[channel_name] = "" // Clear any event UUID.
 						}
+
 					}
 				}
 
@@ -106,17 +113,17 @@ func main() {
 				edoc := ElasticsearchDocument{
 					ev.Timestamp,
 					slack_time.Format(time.RFC3339), // ISO 8601
-					channelInfo.ID,
-					channelInfo.Name,
-					userInfo.ID,
-					userInfo.Name,
+					channel_id,
+					channel_name,
+					user_info.ID,
+					user_info.Name,
 					ev.Text,
 					event_uuid,
 				}
 				// TODO: Actually use err here.
 				es_json, _ := json.Marshal(edoc)
-				fmt.Println(string(es_json))                                                         // DEBUG
-				rtm.SendMessage(rtm.NewOutgoingMessage("Recorded "+string(es_json), channelInfo.ID)) // DEBUG
+				fmt.Println(string(es_json))                                                     // DEBUG
+				rtm.SendMessage(rtm.NewOutgoingMessage("Recorded "+string(es_json), channel_id)) // DEBUG
 			}
 
 		case *slack.PresenceChangeEvent:
