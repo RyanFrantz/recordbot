@@ -63,7 +63,7 @@ func main() {
 			} else {
 				if user_info.ID != bot_id { // We may not want to respond to our own bot and get in a loop.
 					re_bot_request := regexp.MustCompile("^<@" + bot_id + ">\\s+(\\w+)")
-					event_uuid := eventsByChannel[channel_name]
+					event_uuid := events[channel_name]["uuid"]
 					if re_bot_request.MatchString(ev.Text) == true {
 						is_command, bot_command, event_name, err := is_bot_command(ev.Text)
 						if err != nil {
@@ -75,20 +75,23 @@ func main() {
 							// TODO: Consider logging the bot command as a separate field.
 							switch bot_command {
 							case "start":
-								// Test for an existing event in eventsByChannel.
+								// Test for an existing event.
 								if event_uuid != "" {
 									rtm.SendMessage(rtm.NewOutgoingMessage("Already tracking an event in this channel", channel_id))
 								} else {
 									// Generate a UUID to tag messages.
 									event_uuid, err = Uuid()
 									if err != nil {
-										log.Fatal(err)
+										log.Fatal(err) // TODO: Handle gracefully. Continue to log activity.
 									}
-									// TODO: Let's track the event name as well.
-									eventsByChannel[channel_name] = event_uuid
+									events[channel_name] = map[string]string{
+										"uuid":  event_uuid,
+										"name":  event_name, // TODO: If no event name, create one based on time of day + channel name.
+										"start": "now",      // TODO: Add real epoch/timestamp; we need a thread to monitor recording duration.
+									}
 								}
 							case "stop":
-								eventsByChannel[channel_name] = "" // Clear any event UUID.
+								delete(events, channel_name) // Clear the event.
 							}
 
 						}
